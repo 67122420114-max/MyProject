@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIDO2 / WebAuthn Passwordless System</title>
+    <!-- Modern Google Fonts: Prompt & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Custom Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- SimpleWebAuthn Browser CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@10.0.0/dist/bundle/index.umd.min.js"></script>
+</head>
+<body>
+    <div class="background-glob glow-1"></div>
+    <div class="background-glob glow-2"></div>
+
+    <div class="app-container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-fingerprint"></i>
+                </div>
+                <div>
+                    <h1>FIDO2 / WebAuthn</h1>
+                    <p class="subtitle">ระบบยืนยันตัวตนไร้รหัสผ่าน (Passwordless Authentication)</p>
+                </div>
+            </div>
+            <div class="status-badge" id="webauthn-status">
+                <span class="pulse-dot"></span>
+                <span id="status-text">กำลังตรวจสอบ WebAuthn API...</span>
+            </div>
+        </header>
+
+        <!-- Main Card Navigation Tabs -->
+        <main class="main-card">
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="register-tab">
+                    <i class="fa-solid fa-user-plus"></i> สมัครสมาชิก (Register)
+                </button>
+                <button class="tab-btn" data-tab="login-tab">
+                    <i class="fa-solid fa-key"></i> เข้าสู่ระบบ (Login)
+                </button>
+                <button class="tab-btn" data-tab="users-tab" id="refresh-users-btn">
+                    <i class="fa-solid fa-users"></i> ผู้ใช้งานในระบบ
+                </button>
+            </nav>
+
+            <!-- Toast Alert Box -->
+            <div class="toast-container" id="toast-container"></div>
+
+            <!-- Tab 1: Registration Form -->
+            <section class="tab-content active" id="register-tab">
+                <div class="tab-header">
+                    <h2><i class="fa-solid fa-address-card"></i> กรอกข้อมูลเพื่อลงทะเบียน FIDO2</h2>
+                    <p>ระบบจะลงทะเบียนลายนิ้วมือ, ใบหน้า (Face ID / Windows Hello) หรือ Security Key ของคุณ</p>
+                </div>
+
+                <form id="register-form" onsubmit="return false;">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label for="reg-username"><i class="fa-solid fa-user"></i> Username (ชื่อผู้ใช้งาน)</label>
+                            <input type="text" id="reg-username" placeholder="เช่น somchai99" required autocomplete="username">
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-firstname"><i class="fa-solid fa-signature"></i> ชื่อจริง (First Name)</label>
+                            <input type="text" id="reg-firstname" placeholder="เช่น สมชาย" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reg-lastname"><i class="fa-solid fa-signature"></i> นามสกุล (Last Name)</label>
+                            <input type="text" id="reg-lastname" placeholder="เช่น ประเสริฐ" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="reg-phone"><i class="fa-solid fa-phone"></i> หมายเลขโทรศัพท์ (Phone Number)</label>
+                            <input type="tel" id="reg-phone" placeholder="เช่น 0812345678" required>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="btn-register" class="btn btn-primary">
+                            <i class="fa-solid fa-fingerprint"></i> สมัครสมาชิกด้วย FIDO2 / WebAuthn
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Tab 2: Authentication (Login) Form -->
+            <section class="tab-content" id="login-tab">
+                <div class="tab-header">
+                    <h2><i class="fa-solid fa-shield-halved"></i> เข้าสู่ระบบด้วย FIDO2 / WebAuthn</h2>
+                    <p>กรอกเพียง Username จากนั้นทำการสแกนลายนิ้วมือ หรือใบหน้า เพื่อเข้าสู่ระบบ</p>
+                </div>
+
+                <form id="login-form" onsubmit="return false;">
+                    <div class="form-group full-width">
+                        <label for="login-username"><i class="fa-solid fa-user"></i> Username (ชื่อผู้ใช้งาน)</label>
+                        <div class="input-with-action">
+                            <input type="text" id="login-username" placeholder="กรอก Username ของคุณ" required autocomplete="username">
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" id="btn-login" class="btn btn-accent">
+                            <i class="fa-solid fa-unlock-keyhole"></i> เข้าสู่ระบบด้วย FIDO2 (สแกนนิ้ว / ใบหน้า)
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Tab 3: Registered Users List -->
+            <section class="tab-content" id="users-tab">
+                <div class="tab-header">
+                    <h2><i class="fa-solid fa-users-viewfinder"></i> รายชื่อผู้ใช้ที่ลงทะเบียน FIDO2 แล้ว</h2>
+                    <p>สามารถกดเลือกรายชื่อเพื่อทดสอบเข้าสู่ระบบได้ทันที</p>
+                </div>
+                <div class="users-list-container" id="users-list">
+                    <div class="empty-state">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <p>ยังไม่มีผู้ใช้ลงทะเบียนในระบบ</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard / Login Success View -->
+            <section class="tab-content" id="dashboard-tab">
+                <div class="success-banner">
+                    <div class="success-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <h2 class="success-title">เข้าสู่ระบบสำเร็จ! (Login Successful)</h2>
+                        <p class="success-subtitle">การยืนยันตัวตนด้วย FIDO2 WebAuthn สมบูรณ์ถูกต้อง</p>
+                    </div>
+                </div>
+
+                <div class="profile-card">
+                    <div class="profile-avatar">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div class="profile-details">
+                        <div class="profile-row">
+                            <span class="label"><i class="fa-solid fa-user"></i> Username:</span>
+                            <span class="value" id="profile-username">-</span>
+                        </div>
+                        <div class="profile-row">
+                            <span class="label"><i class="fa-solid fa-signature"></i> ชื่อ - นามสกุล:</span>
+                            <span class="value" id="profile-fullname">-</span>
+                        </div>
+                        <div class="profile-row">
+                            <span class="label"><i class="fa-solid fa-phone"></i> เบอร์โทรศัพท์:</span>
+                            <span class="value" id="profile-phone">-</span>
+                        </div>
+                        <div class="profile-row">
+                            <span class="label"><i class="fa-solid fa-shield-cat"></i> วิธีการยืนยัน:</span>
+                            <span class="value tag-badge"><i class="fa-solid fa-lock"></i> FIDO2 / WebAuthn Biometrics</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-actions">
+                    <button id="btn-logout" class="btn btn-secondary">
+                        <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ (Logout)
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Technical Specification Footer -->
+        <footer class="app-footer">
+            <p><i class="fa-brands fa-python"></i> Powered by Python (Flask) + WebAuthn Standard (FIDO2) | Google AI Studio Assisted</p>
+        </footer>
+    </div>
+
+    <!-- Application Script -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
